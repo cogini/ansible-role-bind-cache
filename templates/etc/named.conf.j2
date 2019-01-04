@@ -1,0 +1,115 @@
+//
+// named.conf
+//
+// This is a caching / forwarding nameserver config for use on the local host
+//
+// /etc/resolv.conf should list localhost first, then the nameservers offered by the hosting company, e.g.
+// nameserver 127.0.0.1
+// nameserver 8.8.8.8
+// nameserver 8.8.4.4
+
+options {
+    listen-on port 53 { 127.0.0.1; };
+    // listen-on port 53 { any; };
+    // listen-on-v6 port 53 { ::1; };
+
+    filter-aaaa-on-v4 yes;
+
+    directory     "/var/named";
+    dump-file     "/var/named/data/cache_dump.db";
+    statistics-file "/var/named/data/named_stats.txt";
+    memstatistics-file "/var/named/data/named_mem_stats.txt";
+    allow-query     { localhost; };
+    // allow-query     { any; };
+
+    // recursion yes;
+    allow-recursion { 127.0.0.1; };
+
+    allow-transfer { none; };
+    // allow-query-cache {localhost; localnets;};
+    notify no;
+
+    // additional-from-cache no;
+    minimal-responses yes;
+
+    dnssec-enable yes;
+    dnssec-validation yes;
+    dnssec-lookaside auto;
+
+    /* Path to ISC DLV key */
+    bindkeys-file "/etc/named.iscdlv.key";
+
+    managed-keys-directory "/var/named/dynamic";
+
+    forwarders {
+{% for ip in dns_cache_upstream_dns_servers %}
+        {{ ip }};
+{% endfor %}
+    };
+    forward only;
+};
+
+include "/etc/named/rndc.key";
+
+// controls {};
+controls {
+    inet 127.0.0.1 allow { localhost; } keys { "rndc-key"; };
+};
+
+statistics-channels {
+    inet 127.0.0.1 port {{ bind_cache_statistics_port }} allow { 127.0.0.1; };
+};
+
+logging {
+    // http://www.zytrax.com/books/dns/ch7/logging.html
+
+    channel debug_log {
+        file "/var/log/named/debug.log" versions 10 size 10m;
+        severity dynamic;
+        // debug and above. Assume the global debug level defined by either the command line parameter -d or by running rndc trace
+        print-time yes;
+        print-severity yes;
+        print-category yes;
+    };
+
+    channel simple_log {
+        file "/var/log/named/bind.log" versions 10 size 1m;
+        //severity warning;
+        severity notice;
+        print-time yes;
+        print-severity yes;
+        print-category yes;
+    };
+
+    channel query_log {
+        file "/var/log/named/query.log" versions 10 size 1m;
+        severity dynamic;
+        //severity warning;
+        print-time yes;
+        print-severity yes;
+        print-category yes;
+    };
+
+    category default {
+        simple_log;
+        // Enable this to get debug logging
+        //debug_log;
+    };
+
+    category queries {
+        // Enable this to get query logging, it's not on for category default
+        // query_log;
+    };
+};
+
+view "localhost" {
+    match-destinations { 127.0.0.1; };
+
+    zone "." IN {
+        type hint;
+        file "named.ca";
+    };
+
+    include "/etc/named.rfc1912.zones";
+    include "/etc/named.root.key";
+};

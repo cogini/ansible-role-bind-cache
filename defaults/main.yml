@@ -1,0 +1,7 @@
+---
+# defaults file for bind-cache
+bind_cache_upstream_dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+
+bind_cache_statistics_port: 4053

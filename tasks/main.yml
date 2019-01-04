@@ -1,0 +1,68 @@
+---
+# tasks file for bind-cache
+
+- name: Install os packages
+  yum: name={{ item }} state=installed
+  with_items:
+    - bind
+    - bind-utils
+
+# http://tecadmin.net/configure-rndc-for-bind9/
+- name: Create rndc.key
+  command: /usr/sbin/rndc-confgen -a -c /etc/named/rndc.key creates=/etc/named/rndc.key
+  notify:
+    - restart bind
+
+- name: Set file mode for rndc.key
+  file: path=/etc/named/rndc.key owner=root group=named mode=0640
+  when: not ansible_check_mode
+
+- name: Create dirs
+  file: path={{ item }} state=directory owner=named group=named mode=0755
+  with_items:
+    - "/var/log/named"
+
+- name: Install config for caching nameserver
+  template: src={{ item.src }} dest={{ item.dest }} owner=root group=root mode=0644
+  # validate: "named-checkconf %s"
+  with_items:
+    - { src: 'etc/named.conf.j2', dest: '/etc/named.conf' }
+    - { src: 'etc/rndc.conf.j2', dest: '/etc/rndc.conf' }
+  notify:
+    - restart bind
+
+- name: Set localhost as primary nameserver
+  template: src=etc/resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
+
+- block:
+  # On CentOS 6.x, bind uses sysv init scripts, use Upstart so it's supervised
+  - name: Stat Upstart init file
+    stat: path=/etc/init/bind9.conf
+    register: bind_cache_upstart_job
+
+  - block:
+    - name: Stop sysvinit service
+      command: service {{ bind_cache_service_name }} stop
+      ignore_errors: yes
+
+    - name: Disable sysvinit service
+      command: chkconfig {{ bind_cache_service_name }} off
+      ignore_errors: yes
+
+    - name: Install Upstart job
+      copy: src=etc/init/bind9.conf dest=/etc/init/bind9.conf owner=root group=root mode=0644
+
+    - name: Start Upstart service
+      service: name=bind9 state=started enabled=yes
+
+    when: "ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6' and not bind_cache_upstart_job.stat.exists"
+
+  when: "ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6'"
+
+- name: Ensure service is started
+  service: name={{ bind_cache_service_name }} state=started
+  when: "ansible_service_mgr == 'systemd' or (ansible_service_mgr == 'COMMAND' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7')"
+
+- name: Ensure service is started
+  initctl: name=bind9 state=started
+  when: "ansible_service_mgr == 'upstart' or (ansible_service_mgr == 'COMMAND' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6')"
