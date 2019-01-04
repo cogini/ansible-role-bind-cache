@@ -1,16 +1,16 @@
 ---
 # handlers file for bind-cache
-- name: Restart bind
+- name: restart bind
   service: name={{ bind_cache_service_name }} state=restarted
   when: "ansible_service_mgr == 'systemd' or (ansible_service_mgr == 'COMMAND' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7')"
   become: true
 
-- name: Restart bind
+- name: restart bind
   service: name=bind9 state=restarted
   when: "ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6'"
   become: true
 
-- name: Reload bind
+- name: reload bind
   service: name={{ bind_cache_service_name }} state=reloaded
   when: "ansible_service_mgr == 'systemd' or (ansible_service_mgr == 'COMMAND' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7')"
   become: true
