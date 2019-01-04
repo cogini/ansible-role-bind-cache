@@ -2,7 +2,6 @@
 
 Install a caching / forwarding name server using bind9.
 
-
 When your app is acting as a proxy to back end servers, it it may need to do
 a DNS lookup to convert the host name of the server into an IP hundreds of
 times a second. DNS can become the bottleneck for requests. It also puts heavy
@@ -42,7 +41,7 @@ followed by your upstream DNS servers:
 ```yaml
 - hosts: '*'
   roles:
-     - cogini.bind-cache
+     - cogini.bind_cache
 ```
 
 # License
