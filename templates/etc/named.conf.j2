@@ -42,7 +42,7 @@ options {
     managed-keys-directory "/var/named/dynamic";
 
     forwarders {
-{% for ip in dns_cache_upstream_dns_servers %}
+{% for ip in bind_cache_upstream_dns_servers %}
         {{ ip }};
 {% endfor %}
     };
